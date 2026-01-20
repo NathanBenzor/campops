@@ -7,12 +7,17 @@ import {
   ReadinessStats,
   CategoryMissing,
 } from "../../data/packingRepo";
+import { Pressable } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import type { RootTabParamList } from "../../app/navigation/types";
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
 
 export function ReadinessScreen() {
+  const navigation = useNavigation<BottomTabNavigationProp<RootTabParamList>>();
   const { activeTripId } = useActiveTrip();
 
   const [stats, setStats] = useState<ReadinessStats | null>(null);
@@ -84,7 +89,17 @@ export function ReadinessScreen() {
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={load} />
         }
-        renderItem={({ item }) => <CategoryRow item={item} />}
+        renderItem={({ item }) => (
+          <CategoryRow
+            item={item}
+            onPress={() =>
+              navigation.navigate("PackTab", {
+                filter: "missing",
+                category: item.category,
+              })
+            }
+          />
+        )}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>
@@ -103,12 +118,17 @@ export function ReadinessScreen() {
   );
 }
 
-function CategoryRow({ item }: { item: CategoryMissing }) {
+type CategoryRowProps = {
+  item: CategoryMissing;
+  onPress: () => void;
+};
+
+function CategoryRow({ item, onPress }: CategoryRowProps) {
   return (
-    <View style={styles.row}>
+    <Pressable onPress={onPress} style={styles.row}>
       <Text style={styles.rowTitle}>{item.category}</Text>
       <Text style={styles.rowBadge}>{item.missingCount}</Text>
-    </View>
+    </Pressable>
   );
 }
 
