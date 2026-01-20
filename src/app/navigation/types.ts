@@ -19,6 +19,6 @@ export type TripsStackParamList = {
 
 export type RootTabParamList = {
   TripsTab: undefined;
-  PackTab: undefined;
+  PackTab: { filter?: "missing"; category?: string } | undefined;
   ReadinessTab: undefined;
 };
