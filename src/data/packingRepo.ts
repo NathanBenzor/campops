@@ -103,3 +103,65 @@ export async function applyTemplateToTrip(
     throw e;
   }
 }
+
+export type CategoryMissing = {
+  category: string;
+  missingCount: number;
+};
+
+export type ReadinessStats = {
+  totalCount: number;
+  packedCount: number;
+  missingCount: number;
+  percentPacked: number; // 0..100
+  missingByCategory: CategoryMissing[];
+};
+
+export async function getReadinessStats(
+  tripId: string,
+): Promise<ReadinessStats> {
+  const db = await getDb();
+
+  // Total + packed counts
+  const counts = await db.getFirstAsync<any>(
+    `
+    SELECT
+      COUNT(1) AS totalCount,
+      SUM(CASE WHEN packed = 1 THEN 1 ELSE 0 END) AS packedCount
+    FROM packing_items
+    WHERE trip_id = ?;
+    `,
+    [tripId],
+  );
+
+  const totalCount = Number(counts?.totalCount ?? 0);
+  const packedCount = Number(counts?.packedCount ?? 0);
+  const missingCount = Math.max(0, totalCount - packedCount);
+  const percentPacked =
+    totalCount === 0 ? 0 : Math.round((packedCount / totalCount) * 100);
+
+  // Missing grouped by category
+  const missingRows = await db.getAllAsync<any>(
+    `
+    SELECT category, COUNT(1) AS missingCount
+    FROM packing_items
+    WHERE trip_id = ? AND packed = 0
+    GROUP BY category
+    ORDER BY missingCount DESC, category ASC;
+    `,
+    [tripId],
+  );
+
+  const missingByCategory: CategoryMissing[] = missingRows.map((r) => ({
+    category: String(r.category),
+    missingCount: Number(r.missingCount),
+  }));
+
+  return {
+    totalCount,
+    packedCount,
+    missingCount,
+    percentPacked,
+    missingByCategory,
+  };
+}
