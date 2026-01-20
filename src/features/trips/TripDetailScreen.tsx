@@ -4,6 +4,9 @@ import { RouteProp, useFocusEffect, useRoute } from "@react-navigation/native";
 import type { TripsStackParamList, Trip } from "../../app/navigation/types";
 import { getTripById } from "../../data/tripsRepo";
 import { useActiveTrip } from "../../app/state/ActiveTripContext";
+import { Alert } from "react-native";
+import { countPackingItems, applyTemplateToTrip } from "../../data/packingRepo";
+import { PACKING_TEMPLATES } from "../../data/seedTemplates";
 
 type R = RouteProp<TripsStackParamList, "TripDetail">;
 
@@ -25,7 +28,7 @@ export function TripDetailScreen() {
       return () => {
         mounted = false;
       };
-    }, [tripId])
+    }, [tripId]),
   );
 
   if (!trip) {
@@ -37,6 +40,32 @@ export function TripDetailScreen() {
   }
 
   const isActive = trip.id === activeTripId;
+
+  async function onApplyTemplate() {
+    try {
+      const existingCount = await countPackingItems(trip!.id);
+      if (existingCount > 0) {
+        Alert.alert(
+          "Already has items",
+          "This trip already has packing items.",
+        );
+        return;
+      }
+
+      const template = PACKING_TEMPLATES.find(
+        (t) => t.tripType === trip!.tripType,
+      );
+      if (!template) {
+        Alert.alert("No template", "No template found for this trip type.");
+        return;
+      }
+
+      await applyTemplateToTrip(trip!.id, template.items);
+      Alert.alert("Template applied", `Added ${template.items.length} items.`);
+    } catch (e: any) {
+      Alert.alert("Apply failed", e?.message ?? String(e));
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -56,6 +85,9 @@ export function TripDetailScreen() {
         <Text style={styles.primaryButtonText}>
           {isActive ? "Active Trip" : "Set as Active"}
         </Text>
+      </Pressable>
+      <Pressable style={styles.secondaryButton} onPress={onApplyTemplate}>
+        <Text style={styles.secondaryButtonText}>Apply Template</Text>
       </Pressable>
 
       <View style={styles.noteBox}>
@@ -97,4 +129,14 @@ const styles = StyleSheet.create({
   },
   noteTitle: { fontWeight: "700", marginBottom: 6, color: "#111827" },
   noteText: { color: "#374151" },
+  secondaryButton: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#111827",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: "white",
+  },
+  secondaryButtonText: { color: "#111827", fontSize: 16, fontWeight: "700" },
 });
